@@ -30,63 +30,15 @@ int main()
 {
 	bool training = false;
 	
-	std::vector<std::pair<std::vector<double>,std::vector<double>>> trainingData;
+	std::vector<std::pair<std::vector<double>, std::vector<double>>> trainingData;
 	std::vector<std::vector<double>> testData;
+
 
 	const int dimensions = 28;
 
-	// training data
-	std::fstream file("mnist_test.csv");
-
-	int i = 0;
-
-	std::string line;
-	while (std::getline(file, line))
-	{
-		std::vector<double> data;
-		float label = 0;
-		std::stringstream ss(line);
-		std::string value;
-		
-		bool first = true;
-		while (std::getline(ss, value, ','))
-		{
-			if (first)
-			{
-				if (value != "label")
-				{
-					label = std::stof(value);
-				}
-				first = false;
-			}
-			else
-			{
-				double val = std::stof(value);
-				if (val > 0)
-				{
-					val = val / 255;
-				}
-				data.push_back(val);
-			}
-
-		}
-
-		// convert label to one-hot vector
-		std::vector<double> labelVector(10, 0);
-		labelVector[label] = 1;
-		
-		trainingData.push_back(std::make_pair(labelVector, data));
-
-		i++;
-		//if (i > 100)
-		//	break;
-	}
-
-	// remove first element
-	trainingData.erase(trainingData.begin());
-
-
-	
+	// empty set
+	std::pair<std::vector<double>, std::vector<double>> empty = { std::vector<double>(1, 0), std::vector<double>(28 * 28, 0) };
+	trainingData.emplace_back(empty);
 
 
 	std::vector<unsigned> topology;
@@ -97,25 +49,12 @@ int main()
 	topology.push_back(28);
 	topology.push_back(10);
 	
-	
-	
 	// output layer (10 possible digits)
 	topology.push_back(10);
 
-	//topology.push_back(2);
-	//topology.push_back(3);
-	//topology.push_back(3);
-	//topology.push_back(2);
-	//topology.push_back(1);
-	
-	//Network myNet(topology);
 
-
+	// read the network
 	Network myNet = *Network::Deserialize("network.txt");
-
-	// input values for XOR
-	std::vector<std::vector<double>> inputPool = { { 0, 0 }, { 0, 1 }, { 1, 0 }, { 1, 1 } };
-	std::vector<std::vector<double>> targetPool = { { 0 }, { 1 }, { 1 }, { 0 } };
 
 	std::vector<double> input;
 	std::vector<double> target;
@@ -124,10 +63,9 @@ int main()
 	// training per loop
 	unsigned trainingPerLoop = 5000;
 	
-
 	std::chrono::steady_clock::time_point previous_time;
 
-
+	// set up window
 	sf::RenderWindow window(sf::VideoMode(SCREEN_WIDTH,  SCREEN_HEIGHT), "Neural networks", sf::Style::Close);
 	window.setView(sf::View(sf::FloatRect(0, 0,SCREEN_WIDTH, SCREEN_HEIGHT)));
 
@@ -153,11 +91,13 @@ int main()
 
 	double userInput[dimensions][dimensions] = { 0 };
 
+
+	// app loop
 	while (1 == window.isOpen())
 	{
 		std::chrono::microseconds delta_time = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - previous_time);
 
-
+		// poll events
 		while (1 == window.pollEvent(event))
 		{
 			switch (event.type)
@@ -175,7 +115,7 @@ int main()
 
 		}
 		
-		float error = 0.0f;
+		float error = 0.0f; // training error
 
 		unsigned index = 0;
 
@@ -191,11 +131,6 @@ int main()
 				input = trainingData[index].second;
 				target = { trainingData[index].first };
 
-				// get random input and target
-				//unsigned index = rand() % inputPool.size();
-				//input = inputPool[index];
-				//target = targetPool[index];
-
 				// feed forward
 				myNet.feedForward(input);
 
@@ -203,7 +138,7 @@ int main()
 				myNet.getResults(results);
 
 				// back propagate
-				//myNet.backPropagate(target);
+				myNet.backPropagate(target);
 
 
 
@@ -211,16 +146,8 @@ int main()
 			}
 
 			error /= trainingPerLoop;
-
-			if (error < 0.002f)
-			{
-				std::cout << "Error: " << error << std::endl;
-				std::cout << "Training complete!" << std::endl;
-				//training = false;
-			}
 			
 
-			
 			std::string str = "Error: " + std::to_string(error);
 			text.setString(str);
 
@@ -234,7 +161,7 @@ int main()
 		}
 		else
 		{
-
+			// clear user input
 			if (sf::Keyboard::isKeyPressed(sf::Keyboard::C))
 			{
 				for (unsigned i = 0; i < dimensions; i++)
@@ -245,6 +172,7 @@ int main()
 					}
 				}
 			}
+
 			// if mouse is pressed over pixel, set pixel to black
 			if (sf::Mouse::isButtonPressed(sf::Mouse::Left))
 			{
@@ -284,6 +212,7 @@ int main()
 					
 				}
 			}
+			// erase
 			else if (sf::Mouse::isButtonPressed(sf::Mouse::Right))
 			{
 				sf::Vector2i mousePos = sf::Mouse::getPosition(window);
@@ -328,65 +257,6 @@ int main()
 					predicted = i;
 				}
 			}
-			
-			// if user presses any number key, set the target to that number
-			if (sf::Keyboard::isKeyPressed(sf::Keyboard::Num0))
-			{
-				target = { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-				acctual = 0;
-			}
-			else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Num1))
-			{
-				target = { 0, 1, 0, 0, 0, 0, 0, 0, 0, 0 };
-				acctual = 1;
-			}
-			else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Num2))
-			{
-				target = { 0, 0, 1, 0, 0, 0, 0, 0, 0, 0 };
-				acctual = 2;
-			}
-			else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Num3))
-			{
-				target = { 0, 0, 0, 1, 0, 0, 0, 0, 0, 0 };
-				acctual = 3;
-			}
-			else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Num4))
-			{
-				target = { 0, 0, 0, 0, 1, 0, 0, 0, 0, 0 };
-				acctual = 4;
-			}
-			else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Num5))
-			{
-				target = { 0, 0, 0, 0, 0, 1, 0, 0, 0, 0 };
-				acctual = 5;
-			}
-			else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Num6))
-			{
-				target = { 0, 0, 0, 0, 0, 0, 1, 0, 0, 0 };
-				acctual = 6;
-			}
-			else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Num7))
-			{
-				target = { 0, 0, 0, 0, 0, 0, 0, 1, 0, 0 };
-				acctual = 7;
-			}
-			else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Num8))
-			{
-				target = { 0, 0, 0, 0, 0, 0, 0, 0, 1, 0 };
-				acctual = 8;
-			}
-			else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Num9))
-			{
-				target = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 };
-				acctual = 9;
-			}
-			
-			// if the user presses space, train the network
-			if (sf::Keyboard::isKeyPressed(sf::Keyboard::Space))
-			{
-				myNet.backPropagate(target);
-				std::cout << "acctual: " << acctual << " predicted: " << predicted << std::endl;
-			}
 
 			trainingData[0].second = input;
 			index = 0;
@@ -394,12 +264,13 @@ int main()
 
 		}
 
+		// save data
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::S))
 		{
 			myNet.Serialize();
 		}
-		// print first element
 
+		// print input or current element
 		for (int x = 0; x < dimensions; x++)
 		{
 			for (int y = 0; y < dimensions; y++)
@@ -417,7 +288,7 @@ int main()
 
 
 		
-
+		// draw window
 		window.clear(sf::Color::Black);
 
 		myNet.Draw(window);
